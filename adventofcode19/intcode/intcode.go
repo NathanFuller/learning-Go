@@ -9,12 +9,12 @@ import (
 var series uint64
 
 func main(){
-	signals := make(chan int, 200)
+	settings := make(chan []int, 200)
 
-	Perm([]int{0,1,2,3,4}, func(array []int, channel chan int){
-		channel<-runSeries(array)
+	Perm([]int{5,6,7,8,9}, func(array []int, channel chan []int){
+		channel <- array
 	},
-	signals)
+	settings)
 
 	outs := make([]int, 0)
 	for i := 1; i <= 120; i++{
