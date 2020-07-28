@@ -3,59 +3,72 @@ import (
 	"fmt"
 	"aoc/reading"
 	"strconv"
+	"sync"
 	"sync/atomic"
 )
 
-var series uint64
+var amp uint64
+var wg sync.WaitGroup
 
 func main(){
-	settings := make(chan []int, 200)
+
+	settings := make(chan []int, 120)
 
 	Perm([]int{5,6,7,8,9}, func(array []int, channel chan []int){
+		fmt.Println("in Perm: ", array)
 		channel <- array
 	},
 	settings)
+	close(settings)
 
-	outs := make([]int, 0)
-	for i := 1; i <= 120; i++{
-		outs = append(outs, <-signals)
-	}
 	max := 0
-	for _, s := range outs{
-		if s > max {
-			max = s
+	for st := range settings{
+		num := runSeries(st)
+		if num > max {
+			max = num
 		}
 	}
+	fmt.Println("Max thrust:", max)
 
-	fmt.Printf("Ran %v series\n", series)
-	fmt.Printf("Max: %v\n", max)
 }
 
-func runSeries(settings []int) int {
-	atomic.AddUint64(&series, 1)
-	in := 0
-	for _, s := range settings{
-		in = amplifier(s, in)
-	}
-	return in
+func runSeries(stArr []int) int{
+	fmt.Println(stArr)
+
+	atob := make(chan int, 1)
+	btoc := make(chan int, 1)
+	ctod := make(chan int, 1)
+	dtoe := make(chan int, 1)
+	etoa := make(chan int, 2)
+
+	etoa <-stArr[0]
+	atob <-stArr[1]
+	btoc <-stArr[2]
+	ctod <-stArr[3]
+	dtoe <-stArr[4]
+
+	etoa <- 0
+
+	wg.Add(1)
+	go amplifier(etoa, atob) //amp A
+	wg.Add(1)
+	go amplifier(atob, btoc) //amp B
+	wg.Add(1)
+	go amplifier(btoc, ctod) //amp C
+	wg.Add(1)
+	go amplifier(ctod, dtoe) //amp D
+	wg.Add(1)
+	go amplifier(dtoe, etoa) //amp E
+
+	wg.Wait()
+	return <-etoa
 }
 
-func amplifier(setting, input int) int{
-	into := make(chan int, 2)
-	outof := make(chan int, 1)
-	into <- setting
-	into <- input
-	runprog(into, outof)
-	return <-outof
+func amplifier(input chan int, output chan int) {
+	defer wg.Done()
+	atomic.AddUint64(&amp, 1)
+	runprog(input, output)
 }
-
-func getModes(instruction int) [3]bool{
-	first := ((instruction - (instruction % 100)) - (instruction - (instruction % 1000))) / 100
-	second := ((instruction - (instruction % 1000)) - (instruction - (instruction % 10000))) / 1000
-	third := (instruction - (instruction % 10000)) / 10000
-	return [3]bool{first == 1, second == 1, third == 1}
-}
-
 
 func runprog(input <-chan int, output chan<- int){
 	var program []int
@@ -203,16 +216,26 @@ func runprog(input <-chan int, output chan<- int){
 	}
 }
 
+func getModes(instruction int) [3]bool{
+	first := ((instruction - (instruction % 100)) - (instruction - (instruction % 1000))) / 100
+	second := ((instruction - (instruction % 1000)) - (instruction - (instruction % 10000))) / 1000
+	third := (instruction - (instruction % 10000)) / 10000
+	return [3]bool{first == 1, second == 1, third == 1}
+}
+
+
 /*From https://yourbasic.org/golang/generate-permutation-slice-string/  */
 /* Perm calls f with each permutation of a. */
-func Perm(a []int, f func([]int, chan int), ch chan int) {
+func Perm(a []int, f func([]int, chan []int), ch chan []int) {
     perm(a, f, 0, ch)
 }
 
 /* Permute the values at index i to len(a)-1. */
-func perm(a []int, f func([]int, chan int), i int, ch chan int) {
+func perm(a []int, f func([]int, chan []int), i int, ch chan []int) {
     if i > len(a) {
-        f(a, ch)
+	    s := make([]int, len(a))
+	    copy(s, a)
+        f(s, ch)
         return
     }
     perm(a, f, i+1, ch)
