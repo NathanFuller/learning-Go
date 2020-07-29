@@ -23,29 +23,28 @@ func main(){
 		}
 	}
 
-
-	leastZ := 1000
-	leastI := -1
-	for i, arr := range layers{
-		numZ := countInArray(arr, 0)
-		if numZ < leastZ{
-			leastZ = numZ
-			leastI = i
+	view := make([]uint8, width * height)
+	for i := 0; i < width * height; i++{
+		for j := 0; j < numLayers; j++ {
+			if layers[j][i] != 2 {
+				view[i] = layers[j][i]
+				break
+			}
 		}
 	}
 
-	fmt.Printf("Layer %v has %v zeroes.\n", leastI, leastZ)
-	fmt.Printf("#1s * #2s = %v\n", countInArray(layers[leastI], 1) * countInArray(layers[leastI], 2))
-}
-
-func countInArray(array []uint8, val uint8) int {
-	count := 0
-	for _, v := range array{
-		if v == val{
-			count++
+	idx := 0
+	for y:=0; y < height; y++{
+		for x := 0; x < width; x++{
+			if view[idx] == 0{
+				fmt.Print(" ")
+			} else {
+				fmt.Print("*")
+			}
+			idx++
 		}
+		fmt.Print("\n")
 	}
-	return count
 }
 
 func getPicture(fname string) []uint8{
